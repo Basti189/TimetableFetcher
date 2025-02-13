@@ -80,7 +80,7 @@ public class TimetableFetcher {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime future = now.plusHours(18);
         for (Station station : stations) {
-            System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + formatter.format(future) + ":00");
+            System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + future.toString());
             long startTime = System.nanoTime();
             String response = fetchData(station.getId(), formatterDate.format(future), formatterHour.format(future));
 

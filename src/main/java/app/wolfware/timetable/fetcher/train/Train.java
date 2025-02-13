@@ -22,7 +22,8 @@ public class Train {
 
     public Train(Node parent) {
         id = parent.getAttributes().getNamedItem("id").getTextContent();
-        timestamp = LocalDateTime.parse(id.substring(id.lastIndexOf("-") + 1), TimetableFetcher.formatter);
+        String idWithoutPosition = id.substring(0, id.lastIndexOf("-"));
+        timestamp = LocalDateTime.parse(idWithoutPosition.substring(idWithoutPosition.lastIndexOf("-") + 1), TimetableFetcher.formatter);
         NodeList children = parent.getChildNodes();
         for (int i = 0 ; i < children.getLength() ; i++) {
             Node child = children.item(i);

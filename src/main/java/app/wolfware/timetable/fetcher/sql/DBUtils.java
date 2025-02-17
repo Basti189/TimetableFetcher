@@ -6,6 +6,8 @@ import app.wolfware.timetable.fetcher.train.JourneyInfo;
 import app.wolfware.timetable.fetcher.train.Train;
 
 import java.sql.*;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -210,6 +212,24 @@ public class DBUtils {
             return false;
         }
         return true;
+    }
+
+    public static int cleanTrains() {
+        if (LocalTime.now().getHour() == 0) {
+            String sql = "DELETE FROM train WHERE timestamp < ?";
+            String dateTwoDaysAgo = LocalDate.now().minusDays(2).toString();
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setString(1, dateTwoDaysAgo);
+
+                return stmt.executeUpdate();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return 0;
+        }
+        return -1;
     }
 
     public static List<Station> getAllStations() {

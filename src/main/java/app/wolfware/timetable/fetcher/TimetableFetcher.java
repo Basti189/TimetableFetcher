@@ -59,6 +59,10 @@ public class TimetableFetcher {
                     Thread.currentThread().interrupt(); // Unterbrechen behandeln
                     return;
                 }
+                int deleteTrains = DBUtils.cleanTrains();
+                if (deleteTrains > 0) {
+                    System.out.println("Gelöschte Datensätze: " + deleteTrains);
+                }
                 fetchDataEveryHour(stations);
             }
         });

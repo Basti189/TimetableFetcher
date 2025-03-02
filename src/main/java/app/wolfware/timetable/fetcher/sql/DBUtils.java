@@ -235,12 +235,12 @@ public class DBUtils {
                 }
                 if (train.getDepature() != null && train.getDepature().getPlannedDestination() != null) {
                     pstmt.setString(1, train.getId().substring(0, train.getId().lastIndexOf("-")));
-                    pstmt.setString(2, "plannedDestination");
+                    pstmt.setString(2, "planned_destination");
                     pstmt.setString(3, train.getDepature().getPlannedDestination());
                     pstmt.addBatch();
                 } else if (train.getArrival() != null && train.getArrival().getPlannedDestination() != null) {
                     pstmt.setString(1, train.getId().substring(0, train.getId().lastIndexOf("-")));
-                    pstmt.setString(2, "plannedDestination");
+                    pstmt.setString(2, "planned_destination");
                     pstmt.setString(3, train.getArrival().getPlannedDestination());
                     pstmt.addBatch();
                 }

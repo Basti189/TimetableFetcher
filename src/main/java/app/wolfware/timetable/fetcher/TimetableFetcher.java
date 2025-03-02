@@ -30,7 +30,7 @@ public class TimetableFetcher {
     private final static DateTimeFormatter formatterHour = DateTimeFormatter.ofPattern("HH");
     private final static DateTimeFormatter formatterDate = DateTimeFormatter.ofPattern("yyMMdd");
 
-    public final static boolean FIRST_START = false;
+    public final static boolean FIRST_START = true;
 
     public TimetableFetcher() {
 
@@ -89,12 +89,13 @@ public class TimetableFetcher {
             String response = fetchData(station.getId(), formatterDate.format(future), formatterHour.format(future));
 
             if (response != null) {
-                List<Train> list = processXMLResponse(response);
+                List<Train> list = processXMLResponse(response, station.getName());
                 //processXMLLiveData(fetchChanges(evaNo), list);
                 mergeWingTrains(list);
                 DBUtils.insertTrains(station.getId(), list);
                 DBUtils.insertJourneys(station.getId(), list);
-                DBUtils.insertAdditionalInformation(list);
+                DBUtils.insertAdditionalTrainInformation(list);
+                DBUtils.insertAdditionalJourneyInformation(list);
             }
             long elapsedTime = (System.nanoTime() - startTime) / 1_000_000;
             long sleepTime = INTERVAL_MS - elapsedTime; // Verbleibende Wartezeit berechnen
@@ -122,12 +123,13 @@ public class TimetableFetcher {
                 String response = fetchData(station.getId(), formatterDate.format(time), formatterHour.format(time));
 
                 if (response != null) {
-                    List<Train> list = processXMLResponse(response);
+                    List<Train> list = processXMLResponse(response, station.getName());
                     //processXMLLiveData(fetchChanges(evaNo), list);
                     mergeWingTrains(list);
                     DBUtils.insertTrains(station.getId(), list);
                     DBUtils.insertJourneys(station.getId(), list);
-                    DBUtils.insertAdditionalInformation(list);
+                    DBUtils.insertAdditionalTrainInformation(list);
+                    DBUtils.insertAdditionalJourneyInformation(list);
                 }
                 long elapsedTime = (System.nanoTime() - startTime) / 1_000_000;
                 long sleepTime = INTERVAL_MS - elapsedTime; // Verbleibende Wartezeit berechnen
@@ -216,9 +218,9 @@ public class TimetableFetcher {
     private void mergeWingTrains(List<Train> list) {
         for (Train train : new ArrayList<>(list)) {
             //System.out.println("Merge: " + train.getNumber());
-            if (train.getDepature() != null && train.getDepature().getWings() != null) {
+            if (train.getDeparture() != null && train.getDeparture().getWings() != null) {
                 List<Train> trainWings = new ArrayList<>();
-                String[] wings = train.getDepature().getWings().split("\\|");
+                String[] wings = train.getDeparture().getWings().split("\\|");
                 for (String wing : wings) {
                     Train searchedTrain = getTrainFromListByID(list, wing);
                     if (searchedTrain != null) {
@@ -226,7 +228,7 @@ public class TimetableFetcher {
                     }
                 }
                 if (trainWings.size() > 0) {
-                    train.getDepature().setTrainWings(trainWings);
+                    train.getDeparture().setTrainWings(trainWings);
                 }
 
             }
@@ -303,7 +305,7 @@ public class TimetableFetcher {
         }
     }
 
-    private List<Train> processXMLResponse(String xmlData) {
+    private List<Train> processXMLResponse(String xmlData, String actualStationName) {
         List<Train> list = new ArrayList<>();
         try {
             // Parse the XML data
@@ -320,7 +322,7 @@ public class TimetableFetcher {
             // Extract timetable information
             NodeList stations = doc.getElementsByTagName("s");
             for (int i = 0; i < stations.getLength(); i++) {
-                Train train = new Train(stations.item(i));
+                Train train = new Train(stations.item(i), actualStationName);
                 if (train.getCategory().equals("Bus")) {
                     continue;
                 }

@@ -17,10 +17,12 @@ public class Train {
     private final LocalDateTime timestamp;
     private JourneyInfo arrival;
     private JourneyInfo departure;
+    private String origin;
+    private String destination;
 
 
 
-    public Train(Node parent) {
+    public Train(Node parent, String actualStationName) {
         id = parent.getAttributes().getNamedItem("id").getTextContent();
         String idWithoutPosition = id.substring(0, id.lastIndexOf("-"));
         timestamp = LocalDateTime.parse(idWithoutPosition.substring(idWithoutPosition.lastIndexOf("-") + 1), TimetableFetcher.formatter);
@@ -33,10 +35,20 @@ public class Train {
                 number = attributes.getNamedItem("n").getTextContent();
                 owner = attributes.getNamedItem("o").getTextContent();
             } else if (child.getNodeName().equals("ar")) {
-                arrival = new JourneyInfo(JourneyInfo.Type.ARRIVAL, child);
+                arrival = new JourneyInfo(JourneyInfo.Type.ARRIVAL, child, actualStationName);
             } else if (child.getNodeName().equals("dp")) {
-                departure = new JourneyInfo(JourneyInfo.Type.DEPARTURE, child);
+                departure = new JourneyInfo(JourneyInfo.Type.DEPARTURE, child, actualStationName);
             }
+        }
+        if (arrival != null) {
+            destination = arrival.getPlannedJourneyPoint();
+        } else {
+            destination = actualStationName;
+        }
+        if (departure != null) {
+            origin = departure.getPlannedJourneyPoint();
+        } else {
+            origin = actualStationName;
         }
     }
 
@@ -80,8 +92,16 @@ public class Train {
         return arrival;
     }
 
-    public JourneyInfo getDepature() {
+    public JourneyInfo getDeparture() {
         return departure;
+    }
+
+    public String getOrigin() {
+        return origin;
+    }
+
+    public String getDestination() {
+        return destination;
     }
 
     @Override

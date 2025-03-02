@@ -25,35 +25,27 @@ public class JourneyInfo {
     private String wings, changedWings;
     private List<Train> trainWings;
     private String plannedDestination;
+    private String transition;
     private boolean canceled = false;
     private LocalDateTime canceledTime;
 
-    public JourneyInfo(Type type, Node parent) {
+    public JourneyInfo(Type type, Node parent, String actualStationName) {
         this.type = type;
 
         NamedNodeMap attributes = parent.getAttributes();
         plannedTime = LocalDateTime.parse(attributes.getNamedItem("pt").getTextContent(), TimetableFetcher.formatter);
         plannedPlattform = attributes.getNamedItem("pp").getTextContent();
         plannedDestination = NodeHelper.getTextContent(attributes, "pde");
+        transition = NodeHelper.getTextContent(attributes, "tra");
 
         String ppth = attributes.getNamedItem("ppth").getTextContent();
         if (type == Type.ARRIVAL) {
             plannedJourneyPoint = ppth.split("\\|")[0];
             plannedPath = ppth;
-            /*
-            plannedPath = ppth.substring(plannedJourneyPoint.length());
-            if (plannedPath.length() > 1) {
-                plannedPath = plannedPath.substring(1);
-            }*/
         } else if (type == Type.DEPARTURE) {
             String[] splitted_ppth = ppth.split("\\|");
             plannedJourneyPoint = splitted_ppth[splitted_ppth.length - 1];
             plannedPath = ppth;
-            /*
-            plannedPath = ppth.substring(0, ppth.length()-plannedJourneyPoint.length());
-            if (plannedPath.length() > 1) {
-                plannedPath = plannedPath.substring(0, plannedPath.length() - 1);
-            }/*/
         }
         line = NodeHelper.getTextContent(attributes, "l");
         wings = NodeHelper.getTextContent(attributes, "wings");
@@ -174,6 +166,10 @@ public class JourneyInfo {
         return plannedDestination;
     }
 
+    public String getTransition() {
+        return transition;
+    }
+
     @Override
     public String toString() {
         return "JourneyInfo{" +
@@ -191,6 +187,7 @@ public class JourneyInfo {
                 ", changedWings='" + changedWings + '\'' +
                 ", trainWings=" + trainWings +
                 ", plannedDestination=" + plannedDestination +
+                ", transition=" + transition +
                 ", canceled=" + canceled +
                 ", canceledTime=" + canceledTime +
                 '}';

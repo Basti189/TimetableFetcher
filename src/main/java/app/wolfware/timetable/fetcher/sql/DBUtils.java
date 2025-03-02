@@ -13,12 +13,13 @@ import java.util.List;
 
 public class DBUtils {
 
-    private final static String insert_Train = "INSERT IGNORE INTO train (id, category, number, owner, timestamp) VALUES (?, ?, ?, ?, ?)";
+    private final static String insert_Train = "INSERT IGNORE INTO train (id, category, number, owner, timestamp, origin, destination) VALUES (?, ?, ?, ?, ?, ?, ?)";
     private final static String insert_Station = "INSERT IGNORE INTO station (id, name, alias) VALUES (?, ?, ?)";
     private final static String insert_Journey = "INSERT IGNORE INTO journey (id, position, station, " +
             "arrival_line, arrival_pt, arrival_pp, arrival_ppth, arrival_wings, " +
             "departure_line, departure_pt, departure_pp, departure_ppth, departure_wings) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    private final static String insert_additionalInformation = "INSERT IGNORE INTO additional_info (id, field, value) VALUES (?, ?, ?)";
+    private final static String insert_additionalTrainInformation = "INSERT IGNORE INTO additional_train_info (id, field, value) VALUES (?, ?, ?)";
+    private final static String insert_additionalJourneyInformation = "INSERT IGNORE INTO additional_journey_info (id, position, field, value) VALUES (?, ?, ?, ?)";
 
     public static boolean createDatabase() {
         String createTable_Train = "CREATE TABLE IF NOT EXISTS train (" +
@@ -26,7 +27,9 @@ public class DBUtils {
                 "category VARCHAR(10) NOT NULL, " +
                 "number INT UNSIGNED NOT NULL, " +
                 "owner VARCHAR(10) NOT NULL, " +
-                "timestamp DATETIME NOT NULL);";
+                "timestamp DATETIME NOT NULL," +
+                "origin VARCHAR(100) NOT NULL, " +
+                "destination VARCHAR(100) NOT NULL);";
 
         String createTable_Station = "CREATE TABLE IF NOT EXISTS station (" +
                 "id INT UNSIGNED PRIMARY KEY, " +
@@ -51,12 +54,20 @@ public class DBUtils {
                 "FOREIGN KEY (id) REFERENCES train(id) ON DELETE CASCADE, " +
                 "FOREIGN KEY (station) REFERENCES station(id) ON DELETE CASCADE);";
 
-        String createTable_additionalInformation = "CREATE TABLE IF NOT EXISTS additional_info (" +
+        String createTable_additionalTrainInformation = "CREATE TABLE IF NOT EXISTS additional_train_info (" +
                 "id VARCHAR(50) NOT NULL, " +
                 "field VARCHAR(50) NOT NULL, " +
                 "value VARCHAR(50) NOT NULL, " +
                 "PRIMARY KEY (id, field), " +
                 "FOREIGN KEY (id) REFERENCES train(id) ON DELETE CASCADE);";
+
+        String createTable_additionalJourneyInformation = "CREATE TABLE IF NOT EXISTS additional_journey_info (" +
+                "id VARCHAR(50) NOT NULL, " +
+                "position TINYINT UNSIGNED NOT NULL," +
+                "field VARCHAR(50) NOT NULL, " +
+                "value VARCHAR(50) NOT NULL, " +
+                "PRIMARY KEY (id, position, field), " +
+                "FOREIGN KEY (id, position) REFERENCES journey(id, position) ON DELETE CASCADE);";
 
 
         try (Connection conn = getConnection();
@@ -69,8 +80,10 @@ public class DBUtils {
             System.out.println("Tabelle 'station' erstellt oder existiert bereits.");
             stmt.executeUpdate(createTable_Journey);
             System.out.println("Tabelle 'journey' erstellt oder existiert bereits.");
-            stmt.executeUpdate(createTable_additionalInformation);
-            System.out.println("Tabelle 'additional_info' erstellt oder existiert bereits.");
+            stmt.executeUpdate(createTable_additionalTrainInformation);
+            System.out.println("Tabelle 'additional_train_info' erstellt oder existiert bereits.");
+            stmt.executeUpdate(createTable_additionalJourneyInformation);
+            System.out.println("Tabelle 'additional_journey_info' erstellt oder existiert bereits.");
 
             conn.setAutoCommit(false);
             s(pstmt, 8000193, "Kassel Hbf");
@@ -163,6 +176,8 @@ public class DBUtils {
                 pstmt.setInt(3, Integer.parseInt(train.getNumber()));
                 pstmt.setString(4, train.getOwner());
                 pstmt.setString(5, train.getTimestamp().toString());
+                pstmt.setString(6, train.getOrigin());
+                pstmt.setString(7, train.getDestination());
                 pstmt.addBatch();
             }
             pstmt.executeBatch();
@@ -200,8 +215,8 @@ public class DBUtils {
                     pstmt.setString(7, null);
                     pstmt.setString(8, null);
                 }
-                if (train.getDepature() != null) {
-                    JourneyInfo journey = train.getDepature();
+                if (train.getDeparture() != null) {
+                    JourneyInfo journey = train.getDeparture();
                     pstmt.setString(9, journey.getLine());
                     pstmt.setString(10, journey.getPlannedTime().toString());
                     pstmt.setString(11, journey.getPlannedPlattform());
@@ -225,23 +240,54 @@ public class DBUtils {
         return true;
     }
 
-    public static boolean insertAdditionalInformation(List<Train> trains) {
+    public static boolean insertAdditionalTrainInformation(List<Train> trains) {
         try (Connection conn = DBUtils.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(insert_additionalInformation)) {
+             PreparedStatement pstmt = conn.prepareStatement(insert_additionalTrainInformation)) {
             conn.setAutoCommit(false);
             for (Train train : trains) {
                 if (!train.getOwner().startsWith("N4")) {
                     continue;
                 }
-                if (train.getDepature() != null && train.getDepature().getPlannedDestination() != null) {
+                if (train.getDeparture() != null && train.getDeparture().getPlannedDestination() != null) {
                     pstmt.setString(1, train.getId().substring(0, train.getId().lastIndexOf("-")));
                     pstmt.setString(2, "planned_destination");
-                    pstmt.setString(3, train.getDepature().getPlannedDestination());
+                    pstmt.setString(3, train.getDeparture().getPlannedDestination());
                     pstmt.addBatch();
                 } else if (train.getArrival() != null && train.getArrival().getPlannedDestination() != null) {
                     pstmt.setString(1, train.getId().substring(0, train.getId().lastIndexOf("-")));
                     pstmt.setString(2, "planned_destination");
                     pstmt.setString(3, train.getArrival().getPlannedDestination());
+                    pstmt.addBatch();
+                }
+            }
+            pstmt.executeBatch();
+            conn.commit();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+
+    public static boolean insertAdditionalJourneyInformation(List<Train> trains) {
+        try (Connection conn = DBUtils.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(insert_additionalJourneyInformation)) {
+            conn.setAutoCommit(false);
+            for (Train train : trains) {
+                if (!train.getOwner().startsWith("N4")) {
+                    continue;
+                }
+                if (train.getDeparture() != null && train.getDeparture().getTransition() != null) {
+                    pstmt.setString(1, train.getId().substring(0, train.getId().lastIndexOf("-")));
+                    pstmt.setInt(2, Integer.parseInt(train.getId().substring(train.getId().lastIndexOf("-")+1)));
+                    pstmt.setString(3, "transition");
+                    pstmt.setString(4, train.getDeparture().getTransition());
+                    pstmt.addBatch();
+                } else if (train.getArrival() != null && train.getArrival().getTransition() != null) {
+                    pstmt.setString(1, train.getId().substring(0, train.getId().lastIndexOf("-")));
+                    pstmt.setInt(2, Integer.parseInt(train.getId().substring(train.getId().lastIndexOf("-")+1)));
+                    pstmt.setString(3, "transition");
+                    pstmt.setString(4, train.getArrival().getTransition());
                     pstmt.addBatch();
                 }
             }

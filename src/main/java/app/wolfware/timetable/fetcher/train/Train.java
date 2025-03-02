@@ -41,14 +41,14 @@ public class Train {
             }
         }
         if (arrival != null) {
-            destination = arrival.getPlannedJourneyPoint();
-        } else {
-            destination = actualStationName;
-        }
-        if (departure != null) {
-            origin = departure.getPlannedJourneyPoint();
+            origin = arrival.getPlannedJourneyPoint();
         } else {
             origin = actualStationName;
+        }
+        if (departure != null) {
+            destination = departure.getPlannedJourneyPoint();
+        } else {
+            destination = actualStationName;
         }
     }
 

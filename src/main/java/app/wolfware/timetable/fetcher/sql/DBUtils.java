@@ -17,7 +17,7 @@ public class DBUtils {
     private final static String insert_Station = "INSERT IGNORE INTO station (id, name, alias) VALUES (?, ?, ?)";
     private final static String insert_Journey = "INSERT IGNORE INTO journey (id, position, station, " +
             "arrival_line, arrival_pt, arrival_pp, arrival_ppth, arrival_wings, " +
-            "departure_line, departure_pt, departure_pp, departure_ppth, departure_wings) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            "departure_line, departure_pt, departure_pp, departure_ppth, departure_wings, transition) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     private final static String insert_additionalTrainInformation = "INSERT IGNORE INTO additional_train_info (id, field, value) VALUES (?, ?, ?)";
     private final static String insert_additionalJourneyInformation = "INSERT IGNORE INTO additional_journey_info (id, position, field, value) VALUES (?, ?, ?, ?)";
 
@@ -50,6 +50,7 @@ public class DBUtils {
                 "departure_pp VARCHAR(3) DEFAULT NULL, " +
                 "departure_ppth TEXT DEFAULT NULL, " +
                 "departure_wings TEXT DEFAULT NULL, " +
+                "transition VARCHAR(50) DEFAULT NULL, " +
                 "PRIMARY KEY (id, position), " +
                 "FOREIGN KEY (id) REFERENCES train(id) ON DELETE CASCADE, " +
                 "FOREIGN KEY (station) REFERENCES station(id) ON DELETE CASCADE);";
@@ -61,6 +62,7 @@ public class DBUtils {
                 "PRIMARY KEY (id, field), " +
                 "FOREIGN KEY (id) REFERENCES train(id) ON DELETE CASCADE);";
 
+        /*
         String createTable_additionalJourneyInformation = "CREATE TABLE IF NOT EXISTS additional_journey_info (" +
                 "id VARCHAR(50) NOT NULL, " +
                 "position TINYINT UNSIGNED NOT NULL," +
@@ -68,6 +70,7 @@ public class DBUtils {
                 "value VARCHAR(50) NOT NULL, " +
                 "PRIMARY KEY (id, position, field), " +
                 "FOREIGN KEY (id, position) REFERENCES journey(id, position) ON DELETE CASCADE);";
+         */
 
 
         try (Connection conn = getConnection();
@@ -82,8 +85,8 @@ public class DBUtils {
             System.out.println("Tabelle 'journey' erstellt oder existiert bereits.");
             stmt.executeUpdate(createTable_additionalTrainInformation);
             System.out.println("Tabelle 'additional_train_info' erstellt oder existiert bereits.");
-            stmt.executeUpdate(createTable_additionalJourneyInformation);
-            System.out.println("Tabelle 'additional_journey_info' erstellt oder existiert bereits.");
+            //stmt.executeUpdate(createTable_additionalJourneyInformation);
+            //System.out.println("Tabelle 'additional_journey_info' erstellt oder existiert bereits.");
 
             conn.setAutoCommit(false);
             s(pstmt, 8000193, "Kassel Hbf");
@@ -229,6 +232,13 @@ public class DBUtils {
                     pstmt.setString(12, null);
                     pstmt.setString(13, null);
                 }
+                if (train.getDeparture() != null && train.getDeparture().getTransition() != null) {
+                    pstmt.setString(14, train.getDeparture().getTransition());
+                } else if (train.getArrival() != null && train.getArrival().getTransition() != null) {
+                    pstmt.setString(14, train.getArrival().getTransition());
+                } else {
+                    pstmt.setString(14, null);
+                }
                 pstmt.addBatch();
             }
             pstmt.executeBatch();
@@ -269,7 +279,7 @@ public class DBUtils {
         return true;
     }
 
-    public static boolean insertAdditionalJourneyInformation(List<Train> trains) {
+    /*public static boolean insertAdditionalJourneyInformation(List<Train> trains) {
         try (Connection conn = DBUtils.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(insert_additionalJourneyInformation)) {
             conn.setAutoCommit(false);
@@ -298,7 +308,7 @@ public class DBUtils {
             return false;
         }
         return true;
-    }
+    }*/
 
     public static int cleanTrains() {
         if (LocalTime.now().getHour() == 0) {

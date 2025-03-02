@@ -95,7 +95,7 @@ public class TimetableFetcher {
                 DBUtils.insertTrains(station.getId(), list);
                 DBUtils.insertJourneys(station.getId(), list);
                 DBUtils.insertAdditionalTrainInformation(list);
-                DBUtils.insertAdditionalJourneyInformation(list);
+                //DBUtils.insertAdditionalJourneyInformation(list);
             }
             long elapsedTime = (System.nanoTime() - startTime) / 1_000_000;
             long sleepTime = INTERVAL_MS - elapsedTime; // Verbleibende Wartezeit berechnen
@@ -129,7 +129,7 @@ public class TimetableFetcher {
                     DBUtils.insertTrains(station.getId(), list);
                     DBUtils.insertJourneys(station.getId(), list);
                     DBUtils.insertAdditionalTrainInformation(list);
-                    DBUtils.insertAdditionalJourneyInformation(list);
+                    //DBUtils.insertAdditionalJourneyInformation(list);
                 }
                 long elapsedTime = (System.nanoTime() - startTime) / 1_000_000;
                 long sleepTime = INTERVAL_MS - elapsedTime; // Verbleibende Wartezeit berechnen

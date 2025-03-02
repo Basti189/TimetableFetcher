@@ -212,7 +212,6 @@ public class TimetableFetcher {
     }
 
     private void mergeWingTrains(List<Train> list) {
-        List<Train> listToRemove = new ArrayList<>();
         for (Train train : new ArrayList<>(list)) {
             //System.out.println("Merge: " + train.getNumber());
             if (train.getDepature() != null && train.getDepature().getWings() != null) {
@@ -222,7 +221,6 @@ public class TimetableFetcher {
                     Train searchedTrain = getTrainFromListByID(list, wing);
                     if (searchedTrain != null) {
                         trainWings.add(searchedTrain);
-                        listToRemove.add(searchedTrain);
                     }
                 }
                 if (trainWings.size() > 0) {
@@ -237,21 +235,13 @@ public class TimetableFetcher {
                     Train searchedTrain = getTrainFromListByID(list, wing);
                     if (searchedTrain != null) {
                         trainWings.add(searchedTrain);
-                        listToRemove.add(searchedTrain);
                     }
                 }
                 if (trainWings.size() > 0) {
                     train.getArrival().setTrainWings(trainWings);
                 }
 
-            } else { // Clear List, trains are connected at this station
-                listToRemove.clear();
             }
-            for (Train deleteTrain : listToRemove) {
-                //System.out.println("DELETE: " + deleteTrain.getNumber());
-                list.remove(deleteTrain);
-            }
-            listToRemove.clear();
         }
     }
 

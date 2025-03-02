@@ -37,6 +37,9 @@ public class JourneyInfo {
         plannedPlattform = attributes.getNamedItem("pp").getTextContent();
         plannedDestination = NodeHelper.getTextContent(attributes, "pde");
         transition = NodeHelper.getTextContent(attributes, "tra");
+        if (transition != null && !transition.isEmpty()) {
+            transition = transition.substring(0, transition.lastIndexOf("-"));
+        }
 
         String ppth = attributes.getNamedItem("ppth").getTextContent();
         if (type == Type.ARRIVAL) {

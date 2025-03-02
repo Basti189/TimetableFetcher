@@ -52,10 +52,12 @@ public class DBUtils {
                 "FOREIGN KEY (station) REFERENCES station(id) ON DELETE CASCADE);";
 
         String createTable_additionalInformation = "CREATE TABLE IF NOT EXISTS additional_info (" +
-                "id VARCHAR(50) PRIMARY KEY, " +
+                "id VARCHAR(50) NOT NULL, " +
                 "field VARCHAR(50) NOT NULL, " +
                 "value VARCHAR(50) NOT NULL, " +
-                "FOREIGN KEY (id) REFERENCES train(id) ON DELETE CASCADE); ";
+                "PRIMARY KEY (id, field), " +
+                "FOREIGN KEY (id) REFERENCES train(id) ON DELETE CASCADE);";
+
 
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement();

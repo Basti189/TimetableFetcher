@@ -18,6 +18,7 @@ public class DBUtils {
     private final static String insert_Journey = "INSERT IGNORE INTO journey (id, position, station, " +
             "arrival_line, arrival_pt, arrival_pp, arrival_ppth, arrival_wings, " +
             "departure_line, departure_pt, departure_pp, departure_ppth, departure_wings) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    private final static String insert_additionalInformation = "INSERT IGNORE INTO additional_info (id, field, value) VALUES (?, ?, ?)";
 
     public static boolean createDatabase() {
         String createTable_Train = "CREATE TABLE IF NOT EXISTS train (" +
@@ -50,6 +51,12 @@ public class DBUtils {
                 "FOREIGN KEY (id) REFERENCES train(id) ON DELETE CASCADE, " +
                 "FOREIGN KEY (station) REFERENCES station(id) ON DELETE CASCADE);";
 
+        String createTable_additionalInformation = "CREATE TABLE IF NOT EXISTS additional_info (" +
+                "id VARCHAR(50) PRIMARY KEY, " +
+                "field VARCHAR(50) NOT NULL, " +
+                "value VARCHAR(50) NOT NULL, " +
+                "FOREIGN KEY (id) REFERENCES train(id) ON DELETE CASCADE); ";
+
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement();
              PreparedStatement pstmt = conn.prepareStatement(insert_Station)) {
@@ -60,6 +67,8 @@ public class DBUtils {
             System.out.println("Tabelle 'station' erstellt oder existiert bereits.");
             stmt.executeUpdate(createTable_Journey);
             System.out.println("Tabelle 'journey' erstellt oder existiert bereits.");
+            stmt.executeUpdate(createTable_additionalInformation);
+            System.out.println("Tabelle 'additional_info' erstellt oder existiert bereits.");
 
             conn.setAutoCommit(false);
             s(pstmt, 8000193, "Kassel Hbf");
@@ -204,6 +213,35 @@ public class DBUtils {
                     pstmt.setString(13, null);
                 }
                 pstmt.addBatch();
+            }
+            pstmt.executeBatch();
+            conn.commit();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+
+    public static boolean insertAdditionalInformation(List<Train> trains) {
+        try (Connection conn = DBUtils.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(insert_additionalInformation)) {
+            conn.setAutoCommit(false);
+            for (Train train : trains) {
+                if (!train.getOwner().startsWith("N4")) {
+                    continue;
+                }
+                if (train.getDepature() != null && train.getDepature().getPlannedDestination() != null) {
+                    pstmt.setString(1, train.getId().substring(0, train.getId().lastIndexOf("-")));
+                    pstmt.setString(2, "plannedDestination");
+                    pstmt.setString(3, train.getDepature().getPlannedDestination());
+                    pstmt.addBatch();
+                } else if (train.getArrival() != null && train.getArrival().getPlannedDestination() != null) {
+                    pstmt.setString(1, train.getId().substring(0, train.getId().lastIndexOf("-")));
+                    pstmt.setString(2, "plannedDestination");
+                    pstmt.setString(3, train.getArrival().getPlannedDestination());
+                    pstmt.addBatch();
+                }
             }
             pstmt.executeBatch();
             conn.commit();

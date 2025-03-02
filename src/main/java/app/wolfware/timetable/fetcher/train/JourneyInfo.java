@@ -24,6 +24,7 @@ public class JourneyInfo {
     private String line;
     private String wings, changedWings;
     private List<Train> trainWings;
+    private String plannedDestination;
     private boolean canceled = false;
     private LocalDateTime canceledTime;
 
@@ -33,6 +34,7 @@ public class JourneyInfo {
         NamedNodeMap attributes = parent.getAttributes();
         plannedTime = LocalDateTime.parse(attributes.getNamedItem("pt").getTextContent(), TimetableFetcher.formatter);
         plannedPlattform = attributes.getNamedItem("pp").getTextContent();
+        plannedDestination = NodeHelper.getTextContent(attributes, "pde");
 
         String ppth = attributes.getNamedItem("ppth").getTextContent();
         if (type == Type.ARRIVAL) {
@@ -168,6 +170,10 @@ public class JourneyInfo {
         return Duration.between(plannedTime, changedTime).toMinutes();
     }
 
+    public String getPlannedDestination() {
+        return plannedDestination;
+    }
+
     @Override
     public String toString() {
         return "JourneyInfo{" +
@@ -184,6 +190,7 @@ public class JourneyInfo {
                 ", wings='" + wings + '\'' +
                 ", changedWings='" + changedWings + '\'' +
                 ", trainWings=" + trainWings +
+                ", plannedDestination=" + plannedDestination +
                 ", canceled=" + canceled +
                 ", canceledTime=" + canceledTime +
                 '}';

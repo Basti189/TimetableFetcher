@@ -1,28 +1,28 @@
 package app.wolfware.timetable.fetcher.train;
 
+import app.wolfware.timetable.fetcher.NodeHelper;
 import app.wolfware.timetable.fetcher.TimetableFetcher;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-import java.sql.Time;
 import java.time.LocalDateTime;
 
-public class Train {
+public class TrainChanges {
 
     private final String id;
     private String category;
     private String number;
     private String owner;
     private final LocalDateTime timestamp;
-    private JourneyInfo arrival;
-    private JourneyInfo departure;
+    private JourneyChangesInfo arrival;
+    private JourneyChangesInfo departure;
     private String origin;
     private String destination;
 
 
 
-    public Train(Node parent, String actualStationName) {
+    public TrainChanges(Node parent, String actualStationName) {
         id = parent.getAttributes().getNamedItem("id").getTextContent();
         String idWithoutPosition = id.substring(0, id.lastIndexOf("-"));
         timestamp = LocalDateTime.parse(idWithoutPosition.substring(idWithoutPosition.lastIndexOf("-") + 1), TimetableFetcher.formatter);
@@ -31,13 +31,13 @@ public class Train {
             Node child = children.item(i);
             if (child.getNodeName().equals("tl")) {
                 NamedNodeMap attributes = child.getAttributes();
-                category = attributes.getNamedItem("c").getTextContent();
-                number = attributes.getNamedItem("n").getTextContent();
-                owner = attributes.getNamedItem("o").getTextContent();
+                category = NodeHelper.getTextContent(attributes, "c");
+                number = NodeHelper.getTextContent(attributes, "n");
+                owner = NodeHelper.getTextContent(attributes, "o");
             } else if (child.getNodeName().equals("ar")) {
-                arrival = new JourneyInfo(JourneyInfo.Type.ARRIVAL, child, actualStationName);
+                arrival = new JourneyChangesInfo(JourneyChangesInfo.Type.ARRIVAL, child, actualStationName);
             } else if (child.getNodeName().equals("dp")) {
-                departure = new JourneyInfo(JourneyInfo.Type.DEPARTURE, child, actualStationName);
+                departure = new JourneyChangesInfo(JourneyChangesInfo.Type.DEPARTURE, child, actualStationName);
             }
         }
         if (arrival != null) {
@@ -72,11 +72,11 @@ public class Train {
         return timestamp;
     }
 
-    public JourneyInfo getArrival() {
+    public JourneyChangesInfo getArrival() {
         return arrival;
     }
 
-    public JourneyInfo getDeparture() {
+    public JourneyChangesInfo getDeparture() {
         return departure;
     }
 
@@ -90,14 +90,14 @@ public class Train {
 
     @Override
     public String toString() {
-        return "Train{" +
+        return "TrainChanges{" +
                 "id='" + id + '\'' +
                 ", category='" + category + '\'' +
                 ", number='" + number + '\'' +
                 ", owner='" + owner + '\'' +
                 ", timestamp='" + timestamp + '\'' +
-                ", number='" + number + '\'' +
-                ", owner='" + owner + '\'' +
+                ", origin=" + origin + '\'' +
+                ", destination=" + destination + '\'' +
                 ", arrival=" + arrival + '\'' +
                 ", departure=" + departure +
                 '}';

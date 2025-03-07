@@ -18,7 +18,9 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 import app.wolfware.timetable.fetcher.security.Credentials;
 import app.wolfware.timetable.fetcher.sql.DBUtils;
+import app.wolfware.timetable.fetcher.train.JourneyChangesInfo;
 import app.wolfware.timetable.fetcher.train.Train;
+import app.wolfware.timetable.fetcher.train.TrainChanges;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
@@ -30,7 +32,9 @@ public class TimetableFetcher {
     private final static DateTimeFormatter formatterHour = DateTimeFormatter.ofPattern("HH");
     private final static DateTimeFormatter formatterDate = DateTimeFormatter.ofPattern("yyMMdd");
 
-    public final static boolean FIRST_START = true;
+    public final static boolean FIRST_START = false;
+
+    private boolean callFullChangeData = true;
 
     public TimetableFetcher() {
 
@@ -53,17 +57,23 @@ public class TimetableFetcher {
 
         Thread thread = new Thread(() -> {
             while (true) {
-                try {
-                    Thread.sleep(waitTime() * 1000); // Warten, bis die nächste volle Stunde erreicht ist
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt(); // Unterbrechen behandeln
-                    return;
+                long endTime = System.currentTimeMillis() + (waitTime() * 1000);
+                while (System.currentTimeMillis() < endTime) {
+                    fetchChangesEveryTime(stations);
+                    try {
+                        Thread.sleep(5000); // Kleiner Delay, um CPU-Last zu vermeiden
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt(); // Unterbrechen behandeln
+                        return;
+                    }
                 }
                 int deleteTrains = DBUtils.cleanTrains();
                 if (deleteTrains > 0) {
                     System.out.println("Gelöschte Datensätze: " + deleteTrains);
                 }
+                System.out.println("----------------------");
                 fetchDataEveryHour(stations);
+                System.out.println("----------------------");
             }
         });
         thread.start();
@@ -83,8 +93,9 @@ public class TimetableFetcher {
     private void fetchDataEveryHour(List<Station> stations) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime future = now.plusHours(18);
+        System.out.println("Abruf von SOLL-Daten " + future.toString());
         for (Station station : stations) {
-            System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + future.toString());
+            //System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + future.toString());
             long startTime = System.nanoTime();
             String response = fetchData(station.getId(), formatterDate.format(future), formatterHour.format(future));
 
@@ -113,12 +124,13 @@ public class TimetableFetcher {
     private void fetchDataOnStartUp(List<Station> stations) {
         LocalDateTime now = LocalDateTime.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH");
-
+        System.out.println("Abruf von SOLL-Daten " + now.toString());
         // for (int i = -10; i <= 18; i++) {
         for (int i = -10; i <= 18; i++) {
             LocalDateTime time = now.plusHours(i);
+            System.out.println("Abruf von SOLL-Daten " + now.toString());
             for (Station station : stations) {
-                System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + formatter.format(time) + ":00");
+                //System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + formatter.format(time) + ":00");
                 long startTime = System.nanoTime();
                 String response = fetchData(station.getId(), formatterDate.format(time), formatterHour.format(time));
 
@@ -142,6 +154,33 @@ public class TimetableFetcher {
                     }
                 }
             }
+        }
+    }
+
+    private void fetchChangesEveryTime(List<Station> stations) {
+        LocalDateTime now = LocalDateTime.now();
+        System.out.println("Abruf von IST-Daten " + now.toString());
+        for (Station station : stations) {
+            //System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + now.toString());
+            long startTime = System.nanoTime();
+            String response = fetchChanges(station.getId());
+
+            if (response != null) {
+                List<TrainChanges> list = processXMLChangesResponse(response, station.getName());
+                DBUtils.insertTrainsFromChanges(station.getId(), list);
+                DBUtils.insertJourneyFromChanges(station.getId(), list);
+                DBUtils.insertJourneyChanges(station.getId(), list);
+            }
+            try {
+                Thread.sleep(1000); // Nur warten, wenn nötig
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                System.err.println("Thread wurde unterbrochen!");
+            }
+        }
+        if (callFullChangeData) {
+            callFullChangeData = false;
+            System.out.println("Nächste Runde nur noch relevante Changes abrufen");
         }
     }
 
@@ -180,11 +219,16 @@ public class TimetableFetcher {
         return null;
     }
 
-    private String fetchChanges(String evaNo) {
+    private String fetchChanges(int evaNo) {
         try {
             // Construct the full API URL
-            String urlString = API_URL + "fchg/" + evaNo;
-            System.out.println(urlString);
+            String urlString = API_URL;
+            if (callFullChangeData) {
+                urlString += "fchg/" + evaNo;
+            } else  {
+                urlString += "rchg/" + evaNo;
+            }
+            //System.out.println(urlString);
             URL url = new URL(urlString);
             HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
 
@@ -258,8 +302,8 @@ public class TimetableFetcher {
         return null;
     }
 
-    private void processXMLLiveData(String xmlData, List<Train> list) {
-        // System.out.println(xmlData);
+    private List<TrainChanges> processXMLChangesResponse(String xmlData, String actualStationName) {
+        List<TrainChanges> list = new ArrayList<>();
         try {
             // Parse the XML data
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -269,40 +313,22 @@ public class TimetableFetcher {
             // Normalize the XML structure
             doc.getDocumentElement().normalize();
 
+            LocalDateTime currentTime = LocalDateTime.now();
+            //System.out.println("Abfrage um " + currentTime.getHour() + ":" + currentTime.getMinute() + ":" + currentTime.getSecond());
+
             // Extract timetable information
             NodeList stations = doc.getElementsByTagName("s");
-            for (int i = 0 ; i < stations.getLength() ; i++) {
-                String id = stations.item(i).getAttributes().getNamedItem("id").getTextContent();
-                Train train = getTrainFromListByID(list, id);
-                if (train != null) {
-                    System.out.println(train.getNumber());
-                    train.setLiveData(stations.item(i));
+            for (int i = 0; i < stations.getLength(); i++) {
+                TrainChanges train = new TrainChanges(stations.item(i), actualStationName);
+                if (train.getArrival() == null && train.getDeparture() == null) {
+                    continue;
                 }
+                list.add(train);
             }
-            /*
-            NodeList messages = doc.getElementsByTagName("m");
-            for (int i = 0 ; i < messages.getLength() ; i++) {
-                NodeList children = messages.item(i).getChildNodes();
-                for (int j = 0 ; j < children.getLength() ; j++) {
-                    Node child = children.item(j);
-                    if (child.getNodeName().equals("t")) {
-                        System.out.println("ID: " + child.getTextContent());
-                    } else if (child.getNodeName().equals("tl")) {
-                        System.out.println("TripLabel: " + child.getTextContent());
-                    } else if (child.getNodeName().equals("id")) {
-                        System.out.println("TimeStamp: " + child.getTextContent());
-                    } else if (child.getNodeName().equals("ts")) {
-                        System.out.println("TimeStamp: " + child.getTextContent());
-                    } else if (child.getNodeName().equals("deleted")) {
-                        System.out.println("Deleted: " + child.getTextContent());
-                    } else if (child.getNodeName().equals("ext")) {
-                        System.out.println("E. Text: " + child.getTextContent());
-                    }
-                }
-            }*/
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return list;
     }
 
     private List<Train> processXMLResponse(String xmlData, String actualStationName) {
@@ -317,15 +343,12 @@ public class TimetableFetcher {
             doc.getDocumentElement().normalize();
 
             LocalDateTime currentTime = LocalDateTime.now();
-            System.out.println("Abfrage um " + currentTime.getHour() + ":" + currentTime.getMinute() + ":" + currentTime.getSecond());
+            //System.out.println("Abfrage um " + currentTime.getHour() + ":" + currentTime.getMinute() + ":" + currentTime.getSecond());
 
             // Extract timetable information
             NodeList stations = doc.getElementsByTagName("s");
             for (int i = 0; i < stations.getLength(); i++) {
                 Train train = new Train(stations.item(i), actualStationName);
-                if (train.getCategory().equals("Bus")) {
-                    continue;
-                }
                 list.add(train);
             }
         } catch (Exception e) {

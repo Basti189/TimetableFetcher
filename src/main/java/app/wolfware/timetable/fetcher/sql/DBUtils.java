@@ -36,7 +36,8 @@ public class DBUtils {
                 "owner VARCHAR(10) NOT NULL, " +
                 "timestamp DATETIME NOT NULL," +
                 "origin VARCHAR(100) NOT NULL, " +
-                "destination VARCHAR(100) NOT NULL);";
+                "destination VARCHAR(100) NOT NULL" +
+                "locked BOOLEAN NOT NULL DEFAULT FALSE);";
 
         String createTable_Station = "CREATE TABLE IF NOT EXISTS station (" +
                 "id INT UNSIGNED PRIMARY KEY, " +
@@ -543,7 +544,7 @@ public class DBUtils {
 
     public static int cleanTrains() {
         if (LocalTime.now().getHour() == 0) {
-            String sql = "DELETE FROM train WHERE timestamp < ?";
+            String sql = "DELETE FROM train WHERE timestamp < ? AND locked = 0;";
             String dateTwoDaysAgo = LocalDate.now().minusDays(2).toString();
             try (Connection conn = getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {

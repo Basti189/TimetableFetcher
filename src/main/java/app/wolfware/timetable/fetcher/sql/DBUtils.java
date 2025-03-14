@@ -205,9 +205,6 @@ public class DBUtils {
              PreparedStatement pstmt = conn.prepareStatement(insert_Train)) {
             conn.setAutoCommit(false);
             for (Train train : trains) {
-                if (!train.getOwner().startsWith("N4")) {
-                    continue;
-                }
                 pstmt.setString(1, train.getId().substring(0, train.getId().lastIndexOf("-")));
                 pstmt.setString(2, train.getCategory());
                 pstmt.setInt(3, Integer.parseInt(train.getNumber()));
@@ -231,9 +228,6 @@ public class DBUtils {
              PreparedStatement pstmt = conn.prepareStatement(insert_Train)) {
             conn.setAutoCommit(false);
             for (TrainChanges train : trains) {
-                if (!(train.getOwner() != null && train.getOwner().startsWith("N4"))) {
-                    continue;
-                }
                 if (train.getNumber() == null || train.getOrigin() == null || train.getDestination() == null) {
                     continue;
                 }
@@ -260,9 +254,6 @@ public class DBUtils {
              PreparedStatement pstmt = conn.prepareStatement(insert_Journey)) {
             conn.setAutoCommit(false);
             for (Train train : trains) {
-                if (!train.getOwner().startsWith("N4")) {
-                    continue;
-                }
                 pstmt.setString(1, train.getId().substring(0, train.getId().lastIndexOf("-")));
                 pstmt.setInt(2, Integer.parseInt(train.getId().substring(train.getId().lastIndexOf("-")+1)));
                 pstmt.setInt(3, evaNo);
@@ -487,9 +478,6 @@ public class DBUtils {
              PreparedStatement pstmt = conn.prepareStatement(insert_additionalTrainInformation)) {
             conn.setAutoCommit(false);
             for (Train train : trains) {
-                if (!train.getOwner().startsWith("N4")) {
-                    continue;
-                }
                 if (train.getDeparture() != null && train.getDeparture().getPlannedDestination() != null) {
                     pstmt.setString(1, train.getId().substring(0, train.getId().lastIndexOf("-")));
                     pstmt.setString(2, "planned_destination");

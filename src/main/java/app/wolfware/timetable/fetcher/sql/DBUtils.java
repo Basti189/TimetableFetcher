@@ -310,9 +310,6 @@ public class DBUtils {
              PreparedStatement pstmt = conn.prepareStatement(insert_Journey)) {
             conn.setAutoCommit(false);
             for (TrainChanges train : trains) {
-                if (!(train.getOwner() != null && train.getOwner().startsWith("N4"))) {
-                    continue;
-                }
                 if (train.getNumber() == null || train.getOrigin() == null || train.getDestination() == null) {
                     continue;
                 }

@@ -67,11 +67,17 @@ public class TimetableFetcher {
                         return;
                     }
                 }
-                int deleteTrains = DBUtils.cleanTrains();
+                int deleteTrains = DBUtils.cleanTrains(true);
                 if (deleteTrains > 0) {
                     System.out.println("Gelöschte Datensätze: " + deleteTrains);
                 }
                 System.out.println("----------------------");
+                try {
+                    Thread.sleep(10000); // no risk for rate limit
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt(); // Unterbrechen behandeln
+                    return;
+                }
                 fetchDataEveryHour(stations);
                 System.out.println("----------------------");
             }

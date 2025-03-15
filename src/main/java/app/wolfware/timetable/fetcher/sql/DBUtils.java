@@ -528,8 +528,18 @@ public class DBUtils {
     }*/
 
     public static int cleanTrains() {
+        return cleanTrains(false);
+    }
+
+    public static int cleanTrains(boolean saveOwnTrains) {
         if (LocalTime.now().getHour() == 0) {
-            String sql = "DELETE FROM train WHERE timestamp < ? AND locked = 0;";
+            String sql = null;
+            if (saveOwnTrains) {
+                System.out.println("Eigene Züge werden nicht gelöscht!");
+                sql = "DELETE FROM train WHERE timestamp < ? AND locked = 0 AND owner NOT LIKE 'N4%';";
+            } else {
+                sql = "DELETE FROM train WHERE timestamp < ? AND locked = 0;";
+            }
             String dateTwoDaysAgo = LocalDate.now().minusDays(2).toString();
             try (Connection conn = getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {

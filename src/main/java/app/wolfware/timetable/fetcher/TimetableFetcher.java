@@ -128,7 +128,7 @@ public class TimetableFetcher {
         // for (int i = -10; i <= 18; i++) {
         for (int i = -10; i <= 18; i++) {
             LocalDateTime time = now.plusHours(i);
-            System.out.println("Abruf von SOLL-Daten " + now.toString());
+            System.out.println("Abruf von SOLL-Daten " + time.toString());
             for (Station station : stations) {
                 //System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + formatter.format(time) + ":00");
                 long startTime = System.nanoTime();

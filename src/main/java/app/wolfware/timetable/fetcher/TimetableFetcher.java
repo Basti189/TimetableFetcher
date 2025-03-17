@@ -32,7 +32,7 @@ public class TimetableFetcher {
     private final static DateTimeFormatter formatterHour = DateTimeFormatter.ofPattern("HH");
     private final static DateTimeFormatter formatterDate = DateTimeFormatter.ofPattern("yyMMdd");
 
-    public final static boolean FIRST_START = false;
+    public final static boolean FIRST_START = true;
     private boolean callFullChangeData = true;
 
     public TimetableFetcher() {
@@ -97,8 +97,10 @@ public class TimetableFetcher {
 
     private void fetchDataEveryHour(List<Station> stations) {
         LocalDateTime now = LocalDateTime.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
         LocalDateTime future = now.plusHours(18);
-        System.out.println("Abruf von SOLL-Daten " + future.toString());
+        System.out.print("Abruf von SOLL-Daten " + formatter.format(future));
+        Response lastResponse = null;
         for (Station station : stations) {
             //System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + future.toString());
             long startTime = System.nanoTime();
@@ -115,6 +117,7 @@ public class TimetableFetcher {
                     //DBUtils.insertAdditionalJourneyInformation(list);
                 }
                 DBUtils.insertLog("planned", now, response, station);
+                lastResponse = response;
             }
             long elapsedTime = (System.nanoTime() - startTime) / 1_000_000;
             long sleepTime = INTERVAL_MS - elapsedTime; // Verbleibende Wartezeit berechnen
@@ -127,16 +130,20 @@ public class TimetableFetcher {
                 }
             }
         }
+        if (lastResponse != null) {
+            System.out.println("\tRemaining: " + lastResponse.getRateLimitRemaining());
+        }
     }
 
     private void fetchDataOnStartUp(List<Station> stations) {
         LocalDateTime now = LocalDateTime.now();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH");
-        System.out.println("Abruf von SOLL-Daten " + now.toString());
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+        System.out.println("Abruf -10 bis +18 von SOLL-Daten " + formatter.format(now));
         // for (int i = -10; i <= 18; i++) {
         for (int i = -10; i <= 18; i++) {
             LocalDateTime time = now.plusHours(i);
-            System.out.println("Abruf von SOLL-Daten " + time.toString());
+            System.out.print("Abruf von SOLL-Daten " + formatter.format(time));
+            Response lastResponse = null;
             for (Station station : stations) {
                 //System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + formatter.format(time) + ":00");
                 long startTime = System.nanoTime();
@@ -153,6 +160,7 @@ public class TimetableFetcher {
                         //DBUtils.insertAdditionalJourneyInformation(list);
                     }
                     DBUtils.insertLog("planned", now, response, station);
+                    lastResponse = response;
                 }
                 long elapsedTime = (System.nanoTime() - startTime) / 1_000_000;
                 long sleepTime = INTERVAL_MS - elapsedTime; // Verbleibende Wartezeit berechnen
@@ -165,15 +173,18 @@ public class TimetableFetcher {
                     }
                 }
             }
+            if (lastResponse != null) {
+                System.out.println("\tRemaining: " + lastResponse.getRateLimitRemaining());
+            }
         }
     }
 
     private void fetchChangesEveryTime(List<Station> stations) {
         LocalDateTime now = LocalDateTime.now();
-        System.out.println("Abruf von IST-Daten " + now.toString());
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+        System.out.print("Abruf von IST-Daten " + formatter.format(now));
+        Response lastResponse = null;
         for (Station station : stations) {
-            //System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + now.toString());
-            long startTime = System.nanoTime();
             Response response = fetchChanges(station.getId());
 
             if (response != null) {
@@ -184,6 +195,7 @@ public class TimetableFetcher {
                     DBUtils.insertJourneyChanges(station.getId(), list);
                 }
                 DBUtils.insertLog("changed", now, response, station);
+                lastResponse = response;
             }
             try {
                 Thread.sleep(1000); // Nur warten, wenn nötig
@@ -191,6 +203,9 @@ public class TimetableFetcher {
                 Thread.currentThread().interrupt();
                 System.err.println("Thread wurde unterbrochen!");
             }
+        }
+        if (lastResponse != null) {
+            System.out.println("\tRemaining: " + lastResponse.getRateLimitRemaining());
         }
         if (callFullChangeData) {
             callFullChangeData = false;

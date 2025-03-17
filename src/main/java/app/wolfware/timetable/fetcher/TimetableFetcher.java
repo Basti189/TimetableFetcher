@@ -27,7 +27,6 @@ import org.w3c.dom.NodeList;
 public class TimetableFetcher {
 
     private static final String API_URL = "https://apis.deutschebahn.com/db-api-marketplace/apis/timetables/v1/";
-    private static final long INTERVAL_MS = 1000; // 1 Sekunde zwischen Anfragen
     public final static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyMMddHHmm");
     private final static DateTimeFormatter formatterHour = DateTimeFormatter.ofPattern("HH");
     private final static DateTimeFormatter formatterDate = DateTimeFormatter.ofPattern("yyMMdd");
@@ -97,13 +96,11 @@ public class TimetableFetcher {
 
     private void fetchDataEveryHour(List<Station> stations) {
         LocalDateTime now = LocalDateTime.now();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH");
         LocalDateTime future = now.plusHours(18);
-        System.out.print("Abruf von SOLL-Daten " + formatter.format(future));
+        System.out.print("Abruf von SOLL-Daten (+18) " + formatter.format(future) + ":00");
         Response lastResponse = null;
         for (Station station : stations) {
-            //System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + future.toString());
-            long startTime = System.nanoTime();
             Response response = fetchData(station.getId(), formatterDate.format(future), formatterHour.format(future));
 
             if (response != null) {
@@ -117,17 +114,8 @@ public class TimetableFetcher {
                     //DBUtils.insertAdditionalJourneyInformation(list);
                 }
                 DBUtils.insertLog("planned", now, response, station);
+                waitForRateLimitResetIfNeeded(response.getRateLimitRemaining());
                 lastResponse = response;
-            }
-            long elapsedTime = (System.nanoTime() - startTime) / 1_000_000;
-            long sleepTime = INTERVAL_MS - elapsedTime; // Verbleibende Wartezeit berechnen
-            if (sleepTime > 0) {
-                try {
-                    Thread.sleep(sleepTime); // Nur warten, wenn nötig
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    System.err.println("Thread wurde unterbrochen!");
-                }
             }
         }
         if (lastResponse != null) {
@@ -137,16 +125,14 @@ public class TimetableFetcher {
 
     private void fetchDataOnStartUp(List<Station> stations) {
         LocalDateTime now = LocalDateTime.now();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-        System.out.println("Abruf -10 bis +18 von SOLL-Daten " + formatter.format(now));
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH");
+        System.out.println("Abruf -10 bis +18 von SOLL-Daten");
         // for (int i = -10; i <= 18; i++) {
         for (int i = -10; i <= 18; i++) {
             LocalDateTime time = now.plusHours(i);
-            System.out.print("Abruf von SOLL-Daten " + formatter.format(time));
+            System.out.print("Abruf von SOLL-Daten (" + i + ") " + formatter.format(time) + ":00");
             Response lastResponse = null;
             for (Station station : stations) {
-                //System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + formatter.format(time) + ":00");
-                long startTime = System.nanoTime();
                 Response response = fetchData(station.getId(), formatterDate.format(time), formatterHour.format(time));
 
                 if (response != null) {
@@ -160,17 +146,8 @@ public class TimetableFetcher {
                         //DBUtils.insertAdditionalJourneyInformation(list);
                     }
                     DBUtils.insertLog("planned", now, response, station);
+                    waitForRateLimitResetIfNeeded(response.getRateLimitRemaining());
                     lastResponse = response;
-                }
-                long elapsedTime = (System.nanoTime() - startTime) / 1_000_000;
-                long sleepTime = INTERVAL_MS - elapsedTime; // Verbleibende Wartezeit berechnen
-                if (sleepTime > 0) {
-                    try {
-                        Thread.sleep(sleepTime); // Nur warten, wenn nötig
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        System.err.println("Thread wurde unterbrochen!");
-                    }
                 }
             }
             if (lastResponse != null) {
@@ -195,13 +172,8 @@ public class TimetableFetcher {
                     DBUtils.insertJourneyChanges(station.getId(), list);
                 }
                 DBUtils.insertLog("changed", now, response, station);
+                waitForRateLimitResetIfNeeded(response.getRateLimitRemaining());
                 lastResponse = response;
-            }
-            try {
-                Thread.sleep(1000); // Nur warten, wenn nötig
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                System.err.println("Thread wurde unterbrochen!");
             }
         }
         if (lastResponse != null) {
@@ -412,5 +384,23 @@ public class TimetableFetcher {
             }
         }
         return -1;
+    }
+
+    public void waitForRateLimitResetIfNeeded(int remainingLimit) {
+        if (remainingLimit < 5) {
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime nextMinute = now.truncatedTo(ChronoUnit.MINUTES).plusMinutes(1).plusSeconds(5);
+
+            long waitMillis = java.time.Duration.between(now, nextMinute).toMillis();
+            System.out.print("\tRate Limit fast erschöpft! Warte bis zur nächsten vollen Minute...");
+
+            try {
+                Thread.sleep(waitMillis);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt(); // Wiederherstellen des Interrupt-Status
+            }
+
+            System.out.println(", Rate Limit sollte jetzt zurückgesetzt sein.");
+        }
     }
 }

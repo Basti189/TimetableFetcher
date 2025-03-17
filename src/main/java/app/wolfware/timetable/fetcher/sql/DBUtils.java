@@ -1,5 +1,6 @@
 package app.wolfware.timetable.fetcher.sql;
 
+import app.wolfware.timetable.fetcher.Response;
 import app.wolfware.timetable.fetcher.Station;
 import app.wolfware.timetable.fetcher.security.Credentials;
 import app.wolfware.timetable.fetcher.train.JourneyChangesInfo;
@@ -9,6 +10,7 @@ import app.wolfware.timetable.fetcher.train.TrainChanges;
 
 import java.sql.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +28,9 @@ public class DBUtils {
     private final static String replaceInto_JourneyChanges = "REPLACE INTO journey_changes (id, position, station, " +
             "arrival_line, arrival_ct, arrival_cp, arrival_cpth, arrival_wings, " +
             "departure_line, departure_ct, departure_cp, departure_cpth, departure_wings, transition, arrival_cs, departure_cs, arrival_clt, departure_clt) " +
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";;
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+    private final static String insert_Log = "INSERT IGNORE INTO log (type, request_at, response_code, x_ratelimit_remaining, station) "
+            + "VALUES (?, ?, ?, ?, ?);";
 
     public static boolean createDatabase() {
         String createTable_Train = "CREATE TABLE IF NOT EXISTS train (" +
@@ -94,6 +98,17 @@ public class DBUtils {
                 "FOREIGN KEY (id) REFERENCES train(id) ON DELETE CASCADE, " +
                 "FOREIGN KEY (station) REFERENCES station(id) ON DELETE CASCADE);";
 
+        String createTable_Log = "CREATE TABLE IF NOT EXISTS log ("
+                + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                + "type ENUM('planned', 'changed') NOT NULL, "
+                + "request_at TIMESTAMP DEFAULT NULL, "
+                + "response_code INT NOT NULL DEFAULT -1, "
+                + "x_ratelimit_remaining TINYINT UNSIGNED DEFAULT NULL,"
+                + "station INT UNSIGNED NOT NULL, "
+                + "FOREIGN KEY (station) REFERENCES station(id) ON DELETE CASCADE);";
+
+
         /*
         String createTable_additionalJourneyInformation = "CREATE TABLE IF NOT EXISTS additional_journey_info (" +
                 "id VARCHAR(50) NOT NULL, " +
@@ -119,11 +134,14 @@ public class DBUtils {
             System.out.println("Tabelle 'additional_train_info' erstellt oder existiert bereits.");
             stmt.executeUpdate(createTable_JourneyChanges);
             System.out.println("Tabelle 'journey_changes' erstellt oder existiert bereits.");
+            stmt.executeUpdate(createTable_Log);
+            System.out.println("Tabelle 'log' erstellt oder existiert bereits.");
             //stmt.executeUpdate(createTable_additionalJourneyInformation);
             //System.out.println("Tabelle 'additional_journey_info' erstellt oder existiert bereits.");
 
             conn.setAutoCommit(false);
             s(pstmt, 8000193, "Kassel Hbf");
+            s(pstmt, 8098193, "Kassel Hbf (tief)");
             // RB 83
             s(pstmt, 8004415, "Vellmar-Niedervellmar", "Abzw Vellmar-=Niedervellmar Hp");
             s(pstmt, 8003053, "Fuldatal-Ihringshausen", "F-Ihringshausen");
@@ -201,6 +219,11 @@ public class DBUtils {
     }
 
     public static boolean insertTrains(int evaNo, List<Train> trains) {
+        // Change Kassel Hbf (tief) to Kassel Hbf
+        if (evaNo == 8098193) {
+            evaNo = 8000193;
+        }
+
         try (Connection conn = DBUtils.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(insert_Train)) {
             conn.setAutoCommit(false);
@@ -224,6 +247,11 @@ public class DBUtils {
     }
 
     public static boolean insertTrainsFromChanges(int evaNo, List<TrainChanges> trains) {
+        // Change Kassel Hbf (tief) to Kassel Hbf
+        if (evaNo == 8098193) {
+            evaNo = 8000193;
+        }
+
         try (Connection conn = DBUtils.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(insert_Train)) {
             conn.setAutoCommit(false);
@@ -250,6 +278,11 @@ public class DBUtils {
     }
 
     public static boolean insertJourneys(int evaNo, List<Train> trains) {
+        // Change Kassel Hbf (tief) to Kassel Hbf
+        if (evaNo == 8098193) {
+            evaNo = 8000193;
+        }
+
         try (Connection conn = DBUtils.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(insert_Journey)) {
             conn.setAutoCommit(false);
@@ -495,6 +528,27 @@ public class DBUtils {
         }
         return true;
     }
+
+    public static boolean insertLog(String type, LocalDateTime request, Response response, Station station) {
+        if (response.getResponseCode() == 200) {
+            return true;
+        }
+        try (Connection conn = DBUtils.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(insert_Log)) {
+            pstmt.setString(1, type);
+            pstmt.setString(2, request.toString());
+            pstmt.setInt(3, response.getResponseCode());
+            pstmt.setInt(4, response.getRateLimitRemaining());
+            pstmt.setInt(5, station.getId());
+
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+
 
     /*public static boolean insertAdditionalJourneyInformation(List<Train> trains) {
         try (Connection conn = DBUtils.getConnection();

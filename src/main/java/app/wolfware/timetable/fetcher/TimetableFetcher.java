@@ -33,7 +33,6 @@ public class TimetableFetcher {
     private final static DateTimeFormatter formatterDate = DateTimeFormatter.ofPattern("yyMMdd");
 
     public final static boolean FIRST_START = false;
-
     private boolean callFullChangeData = true;
 
     public TimetableFetcher() {
@@ -103,16 +102,19 @@ public class TimetableFetcher {
         for (Station station : stations) {
             //System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + future.toString());
             long startTime = System.nanoTime();
-            String response = fetchData(station.getId(), formatterDate.format(future), formatterHour.format(future));
+            Response response = fetchData(station.getId(), formatterDate.format(future), formatterHour.format(future));
 
             if (response != null) {
-                List<Train> list = processXMLResponse(response, station.getName());
-                //processXMLLiveData(fetchChanges(evaNo), list);
-                mergeWingTrains(list);
-                DBUtils.insertTrains(station.getId(), list);
-                DBUtils.insertJourneys(station.getId(), list);
-                DBUtils.insertAdditionalTrainInformation(list);
-                //DBUtils.insertAdditionalJourneyInformation(list);
+                if (response.getBody() != null && response.getResponseCode() == 200) {
+                    List<Train> list = processXMLResponse(response.getBody(), station.getName());
+                    //processXMLLiveData(fetchChanges(evaNo), list);
+                    mergeWingTrains(list);
+                    DBUtils.insertTrains(station.getId(), list);
+                    DBUtils.insertJourneys(station.getId(), list);
+                    DBUtils.insertAdditionalTrainInformation(list);
+                    //DBUtils.insertAdditionalJourneyInformation(list);
+                }
+                DBUtils.insertLog("planned", now, response, station);
             }
             long elapsedTime = (System.nanoTime() - startTime) / 1_000_000;
             long sleepTime = INTERVAL_MS - elapsedTime; // Verbleibende Wartezeit berechnen
@@ -138,16 +140,19 @@ public class TimetableFetcher {
             for (Station station : stations) {
                 //System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + formatter.format(time) + ":00");
                 long startTime = System.nanoTime();
-                String response = fetchData(station.getId(), formatterDate.format(time), formatterHour.format(time));
+                Response response = fetchData(station.getId(), formatterDate.format(time), formatterHour.format(time));
 
                 if (response != null) {
-                    List<Train> list = processXMLResponse(response, station.getName());
-                    //processXMLLiveData(fetchChanges(evaNo), list);
-                    mergeWingTrains(list);
-                    DBUtils.insertTrains(station.getId(), list);
-                    DBUtils.insertJourneys(station.getId(), list);
-                    DBUtils.insertAdditionalTrainInformation(list);
-                    //DBUtils.insertAdditionalJourneyInformation(list);
+                    if (response.getBody() != null && response.getResponseCode() == 200) {
+                        List<Train> list = processXMLResponse(response.getBody(), station.getName());
+                        //processXMLLiveData(fetchChanges(evaNo), list);
+                        mergeWingTrains(list);
+                        DBUtils.insertTrains(station.getId(), list);
+                        DBUtils.insertJourneys(station.getId(), list);
+                        DBUtils.insertAdditionalTrainInformation(list);
+                        //DBUtils.insertAdditionalJourneyInformation(list);
+                    }
+                    DBUtils.insertLog("planned", now, response, station);
                 }
                 long elapsedTime = (System.nanoTime() - startTime) / 1_000_000;
                 long sleepTime = INTERVAL_MS - elapsedTime; // Verbleibende Wartezeit berechnen
@@ -169,13 +174,16 @@ public class TimetableFetcher {
         for (Station station : stations) {
             //System.out.println("Abruf " + station.getName() + "[" + station.getId() + "]" + " " + now.toString());
             long startTime = System.nanoTime();
-            String response = fetchChanges(station.getId());
+            Response response = fetchChanges(station.getId());
 
             if (response != null) {
-                List<TrainChanges> list = processXMLChangesResponse(response, station.getName());
-                DBUtils.insertTrainsFromChanges(station.getId(), list);
-                DBUtils.insertJourneyFromChanges(station.getId(), list);
-                DBUtils.insertJourneyChanges(station.getId(), list);
+                if (response.getBody() != null && response.getResponseCode() == 200) {
+                    List<TrainChanges> list = processXMLChangesResponse(response.getBody(), station.getName());
+                    DBUtils.insertTrainsFromChanges(station.getId(), list);
+                    DBUtils.insertJourneyFromChanges(station.getId(), list);
+                    DBUtils.insertJourneyChanges(station.getId(), list);
+                }
+                DBUtils.insertLog("changed", now, response, station);
             }
             try {
                 Thread.sleep(1000); // Nur warten, wenn nötig
@@ -190,7 +198,8 @@ public class TimetableFetcher {
         }
     }
 
-    private String fetchData(int evaNo, String date, String hour) {
+    private Response fetchData(int evaNo, String date, String hour) {
+        Response r = new Response();
         try {
             // Construct the full API URL
             String urlString = API_URL + "plan/" + evaNo + "/" + date + "/" + hour;
@@ -205,6 +214,10 @@ public class TimetableFetcher {
 
             // Check the response code
             int responseCode = connection.getResponseCode();
+            r.setResponseCode(responseCode);
+            int rateLimitRemaining = extractRateLimitRemaining(connection.getHeaderFields());
+            r.setRateLimitRemaining(rateLimitRemaining);
+
             if (responseCode == 200) {
                 // Read the response
                 BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
@@ -215,17 +228,19 @@ public class TimetableFetcher {
                     response.append(inputLine);
                 }
                 in.close();
-                return response.toString();
+                r.setBody(response.toString());
             } else {
                 System.out.println("Failed to fetch data. HTTP response code: " + responseCode);
             }
+            return r;
         } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
     }
 
-    private String fetchChanges(int evaNo) {
+    private Response fetchChanges(int evaNo) {
+        Response r = new Response();
         try {
             // Construct the full API URL
             String urlString = API_URL;
@@ -245,6 +260,10 @@ public class TimetableFetcher {
 
             // Check the response code
             int responseCode = connection.getResponseCode();
+            r.setResponseCode(responseCode);
+            int rateLimitRemaining = extractRateLimitRemaining(connection.getHeaderFields());
+            r.setRateLimitRemaining(rateLimitRemaining);
+
             if (responseCode == 200) {
                 // Read the response
                 BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
@@ -255,10 +274,11 @@ public class TimetableFetcher {
                     response.append(inputLine);
                 }
                 in.close();
-                return response.toString();
+                r.setBody(response.toString());
             } else {
                 System.out.println("Failed to fetch changes. HTTP response code: " + responseCode);
             }
+            return r;
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -361,5 +381,21 @@ public class TimetableFetcher {
             e.printStackTrace();
         }
         return list;
+    }
+
+    private int extractRateLimitRemaining(Map<String, List<String>> headers) {
+        List<String> headerValues = headers.get("X-RateLimit-Remaining"); // Case-Sensitive!
+        if (headerValues != null && !headerValues.isEmpty()) {
+            for (String value : headerValues) {
+                value = value.trim().replace(";", "");
+                if (value.startsWith("name=default,")) {
+                    String numericPart = value.substring("name=default,".length()).trim();
+                    try {
+                        return Integer.parseInt(numericPart);
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+        return -1;
     }
 }

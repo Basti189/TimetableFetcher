@@ -530,7 +530,7 @@ public class DBUtils {
     }
 
     public static boolean insertLog(String type, LocalDateTime request, Response response, Station station) {
-        if (response.getResponseCode() == 200) {
+        if (response.getResponseCode() == 200 && response.getRateLimitRemaining() > 0) {
             return true;
         }
         try (Connection conn = DBUtils.getConnection();

@@ -25,6 +25,7 @@ public class JourneyInfo {
     private List<Train> trainWings;
     private String plannedDestination;
     private String transition;
+    private boolean hidden;
 
     public JourneyInfo(Type type, Node parent, String actualStationName) {
         this.type = type;
@@ -49,6 +50,9 @@ public class JourneyInfo {
         }
         line = NodeHelper.getTextContent(attributes, "l");
         wings = NodeHelper.getTextContent(attributes, "wings");
+        if (NodeHelper.getTextContent(attributes, "hi") != null) {
+            hidden = Boolean.parseBoolean(attributes.getNamedItem("hi").getTextContent());
+        }
     }
 
     public Type getType() {
@@ -95,6 +99,14 @@ public class JourneyInfo {
         return transition;
     }
 
+    public void setHidden(boolean hidden) {
+        this.hidden = hidden;
+    }
+
+    public boolean isHidden() {
+        return hidden;
+    }
+
     @Override
     public String toString() {
         return "JourneyInfo{" +
@@ -108,6 +120,7 @@ public class JourneyInfo {
                 ", trainWings=" + trainWings +
                 ", plannedDestination=" + plannedDestination +
                 ", transition=" + transition +
+                ", hidden=" + hidden +
                 '}';
     }
 }

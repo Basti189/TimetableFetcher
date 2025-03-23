@@ -20,8 +20,8 @@ public class DBUtils {
     private final static String insert_Train = "INSERT IGNORE INTO train (id, category, number, owner, timestamp, origin, destination) VALUES (?, ?, ?, ?, ?, ?, ?)";
     private final static String insert_Station = "INSERT IGNORE INTO station (id, name, alias) VALUES (?, ?, ?)";
     private final static String insert_Journey = "INSERT IGNORE INTO journey (id, position, station, " +
-            "arrival_line, arrival_pt, arrival_pp, arrival_ppth, arrival_wings, " +
-            "departure_line, departure_pt, departure_pp, departure_ppth, departure_wings, transition, event) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            "arrival_line, arrival_pt, arrival_pp, arrival_ppth, arrival_wings, arrival_hidden," +
+            "departure_line, departure_pt, departure_pp, departure_ppth, departure_wings, departure_hidden, transition, event) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     private final static String insert_additionalTrainInformation = "INSERT IGNORE INTO additional_train_info (id, field, value) VALUES (?, ?, ?)";
     private final static String insert_additionalJourneyInformation = "INSERT IGNORE INTO additional_journey_info (id, position, field, value) VALUES (?, ?, ?, ?)";
 
@@ -57,11 +57,13 @@ public class DBUtils {
                 "arrival_pp VARCHAR(3) DEFAULT NULL, " +
                 "arrival_ppth TEXT DEFAULT NULL, " +
                 "arrival_wings TEXT DEFAULT NULL, " +
+                "arrival_hidden BOOLEAN DEFAULT FALSE, " +
                 "departure_line VARCHAR(3) DEFAULT NULL, " +
                 "departure_pt DATETIME DEFAULT NULL, " +
                 "departure_pp VARCHAR(3) DEFAULT NULL, " +
                 "departure_ppth TEXT DEFAULT NULL, " +
                 "departure_wings TEXT DEFAULT NULL, " +
+                "departure_hidden BOOLEAN DEFAULT FALSE, " +
                 "transition VARCHAR(50) DEFAULT NULL, " +
                 "event CHAR(1) NOT NULL DEFAULT 'p', " +
                 "PRIMARY KEY (id, position), " +
@@ -297,6 +299,7 @@ public class DBUtils {
                     pstmt.setString(6, journey.getPlannedPlattform());
                     pstmt.setString(7, journey.getPlannedPath());
                     pstmt.setString(8, journey.getWings());
+                    pstmt.setBoolean(9, journey.isHidden());
 
                 } else {
                     pstmt.setString(4, null);
@@ -304,29 +307,32 @@ public class DBUtils {
                     pstmt.setString(6, null);
                     pstmt.setString(7, null);
                     pstmt.setString(8, null);
+                    pstmt.setString(9, null);
                 }
                 if (train.getDeparture() != null) {
                     JourneyInfo journey = train.getDeparture();
-                    pstmt.setString(9, journey.getLine());
-                    pstmt.setString(10, journey.getPlannedTime().toString());
-                    pstmt.setString(11, journey.getPlannedPlattform());
-                    pstmt.setString(12, journey.getPlannedPath());
-                    pstmt.setString(13, journey.getWings());
+                    pstmt.setString(10, journey.getLine());
+                    pstmt.setString(11, journey.getPlannedTime().toString());
+                    pstmt.setString(12, journey.getPlannedPlattform());
+                    pstmt.setString(13, journey.getPlannedPath());
+                    pstmt.setString(14, journey.getWings());
+                    pstmt.setBoolean(15, journey.isHidden());
                 } else {
-                    pstmt.setString(9, null);
                     pstmt.setString(10, null);
                     pstmt.setString(11, null);
                     pstmt.setString(12, null);
                     pstmt.setString(13, null);
+                    pstmt.setString(14, null);
+                    pstmt.setString(15, null);
                 }
                 if (train.getDeparture() != null && train.getDeparture().getTransition() != null) {
-                    pstmt.setString(14, train.getDeparture().getTransition());
+                    pstmt.setString(16, train.getDeparture().getTransition());
                 } else if (train.getArrival() != null && train.getArrival().getTransition() != null) {
-                    pstmt.setString(14, train.getArrival().getTransition());
+                    pstmt.setString(16, train.getArrival().getTransition());
                 } else {
-                    pstmt.setString(14, null);
+                    pstmt.setString(16, null);
                 }
-                pstmt.setString(15, "p");
+                pstmt.setString(17, "p");
                 pstmt.addBatch();
             }
             pstmt.executeBatch();
@@ -360,6 +366,7 @@ public class DBUtils {
                     pstmt.setString(6, journey.getPlannedPlattform());
                     pstmt.setString(7, journey.getPlannedPath());
                     pstmt.setString(8, journey.getWings());
+                    pstmt.setBoolean(9, journey.isHidden());
 
                 } else {
                     pstmt.setString(4, null);
@@ -367,39 +374,42 @@ public class DBUtils {
                     pstmt.setString(6, null);
                     pstmt.setString(7, null);
                     pstmt.setString(8, null);
+                    pstmt.setString(9, null);
                 }
                 if (train.getDeparture() != null) {
                     JourneyChangesInfo journey = train.getDeparture();
-                    pstmt.setString(9, journey.getLine());
+                    pstmt.setString(10, journey.getLine());
                     if (journey.getPlannedTime() != null) {
-                        pstmt.setString(10, journey.getPlannedTime().toString());
+                        pstmt.setString(11, journey.getPlannedTime().toString());
                     } else {
-                        pstmt.setString(10, null);
+                        pstmt.setString(11, null);
                     }
-                    pstmt.setString(11, journey.getPlannedPlattform());
-                    pstmt.setString(12, journey.getPlannedPath());
-                    pstmt.setString(13, journey.getWings());
+                    pstmt.setString(12, journey.getPlannedPlattform());
+                    pstmt.setString(13, journey.getPlannedPath());
+                    pstmt.setString(14, journey.getWings());
+                    pstmt.setBoolean(15, journey.isHidden());
                 } else {
-                    pstmt.setString(9, null);
                     pstmt.setString(10, null);
                     pstmt.setString(11, null);
                     pstmt.setString(12, null);
                     pstmt.setString(13, null);
+                    pstmt.setString(14, null);
+                    pstmt.setString(15, null);
                 }
                 if (train.getDeparture() != null && train.getDeparture().getTransition() != null) {
-                    pstmt.setString(14, train.getDeparture().getTransition());
+                    pstmt.setString(16, train.getDeparture().getTransition());
                 } else if (train.getArrival() != null && train.getArrival().getTransition() != null) {
-                    pstmt.setString(14, train.getArrival().getTransition());
+                    pstmt.setString(16, train.getArrival().getTransition());
                 } else {
-                    pstmt.setString(14, null);
+                    pstmt.setString(16, null);
                 }
 
                 if (train.getDeparture() != null && train.getDeparture().getEventStatus() != null) {
-                    pstmt.setString(15, train.getDeparture().getEventStatus());
+                    pstmt.setString(17, train.getDeparture().getEventStatus());
                 } else if (train.getArrival() != null && train.getArrival().getEventStatus() != null) {
-                    pstmt.setString(15, train.getArrival().getEventStatus());
+                    pstmt.setString(17, train.getArrival().getEventStatus());
                 } else {
-                    pstmt.setString(15, "a");
+                    pstmt.setString(17, "a");
                 }
                 pstmt.addBatch();
             }

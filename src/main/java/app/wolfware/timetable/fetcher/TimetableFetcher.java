@@ -31,7 +31,7 @@ public class TimetableFetcher {
     private final static DateTimeFormatter formatterHour = DateTimeFormatter.ofPattern("HH");
     private final static DateTimeFormatter formatterDate = DateTimeFormatter.ofPattern("yyMMdd");
 
-    public final static boolean FIRST_START = true;
+    public final static boolean FIRST_START = false;
     private boolean callFullChangeData = true;
 
     public TimetableFetcher() {

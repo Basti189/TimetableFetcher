@@ -29,6 +29,7 @@ public class JourneyChangesInfo {
     private boolean canceled = false;
     private LocalDateTime canceledTime;
     private String eventStatus;
+    private boolean hidden;
 
     public JourneyChangesInfo(Type type, Node parent, String actualStationName) {
         this.type = type;
@@ -183,6 +184,9 @@ public class JourneyChangesInfo {
         return eventStatus;
     }
 
+    public boolean isHidden() {
+        return hidden;
+    }
     @Override
     public String toString() {
         return "JourneyChangesInfo{" +
